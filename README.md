@@ -1,5 +1,9 @@
 # Git Resume Analyzer
 
+![Skill](https://img.shields.io/badge/-AI%20Skill-8A2BE2)
+![Platforms](https://img.shields.io/badge/platforms-10+-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 > 从 git 提交历史生成专业简历内容。
 >
 > **AI 直接进仓库看 diff、读源码、写简历。脚本只是可选辅助。**
@@ -39,8 +43,9 @@ python git_resume_analyzer.py --author "你的名字" --json --no-merges
 
 | 文件 | 用途 |
 |------|------|
-| **GIT-RESUME-SKILL.md** | AI 规则手册——告诉 AI 怎么分析 git 数据写简历 |
-| **git_resume_analyzer.py** | 数据采集脚本（纯采集，零判断） |
+| **GIT-RESUME-SKILL.md** | ⭐ 主入口——AI 规则手册，告诉 AI 怎么分析 git 数据写简历 |
+| **skills/git-resume-analyzer/SKILL.md** | OpenClaw 兼容路径，内容同上 |
+| **git_resume_analyzer.py** | 可选的数据采集脚本（纯采集，零判断） |
 | **examples/** | 输出示例参考 |
 
 ---
