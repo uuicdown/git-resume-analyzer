@@ -4,9 +4,9 @@
 ![Platforms](https://img.shields.io/badge/platforms-10+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> 从 git 提交历史生成简历内容。
+> 从 git 提交历史生成求职材料：简历、面试讲稿、技术文章。
 >
-> AI 直接进仓库看 diff、读源码、写简历；脚本只做数据采集。
+> AI 直接进仓库看 diff、读源码、写材料；脚本只做数据采集。
 
 ## 这是什么
 

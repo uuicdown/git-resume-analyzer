@@ -1,6 +1,6 @@
 ---
 name: git-resume-analyzer
-description: 从 git 提交历史生成专业简历内容。AI 直接进仓库看提交、读 diff、分析源码，自主完成全部语义分析——问题推断、技术栈识别、方案提取、简历撰写。脚本仅作可选辅助。
+description: 从 git 提交历史生成求职材料（简历、面试讲稿、技术文章）。AI 直接进仓库看提交、读 diff、分析源码，自行推断问题、技术栈与实现方式；配套脚本只做数据采集。
 ---
 
 # Git Resume Analyzer
