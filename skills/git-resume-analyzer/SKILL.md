@@ -75,7 +75,7 @@ python git_resume_analyzer.py --author "作者名" --json --no-merges
 ```json
 {
   "summary": {
-    "author": "luoxiaogen",
+    "author": "alice",
     "total_commits": 12,
     "merge_commits": 0,
     "total_lines_added": 1375,
@@ -87,10 +87,10 @@ python git_resume_analyzer.py --author "作者名" --json --no-merges
     {
       "hash": "58c58df",
       "date": "2026-05-25",
-      "title": "fix(assets): 浪潮云主机OS字段解析全面修复",
-      "body": "1. 新增 parseOsInfo() 方法...\n2. 支持 V 前缀格式...\n3. 支持无 V 前缀格式...",
+      "title": "fix(orders): 订单状态字段解析修复",
+      "body": "1. 新增 parseStatusInfo() 方法...\n2. 支持多种状态格式...\n3. 解析失败时保留原值...",
       "files": [
-        "assets/src/main/java/.../AMachineServiceImpl.java",
+        "orders/src/main/java/.../OrderServiceImpl.java",
         "common/src/main/java/.../Constant.java"
       ],
       "lines_added": 79,
@@ -120,9 +120,9 @@ python git_resume_analyzer.py --author "作者名" --json --no-merges
 需要合并的提交：
   - 标题相似、时间接近、涉及相同文件 → 合并为一个项目成就
     例如：
-      "fix: OS字段解析全面修复" (+79行)
-      "fix: OS字段解析及CPU非空约束修复" (+54行)
-      → 合并为「设计多格式 OS 字段解析引擎，累计 +133 行」
+      "fix: 订单状态字段解析修复" (+79行)
+      "fix: 订单状态字段解析及空值约束修复" (+54行)
+      → 合并为「设计多格式状态字段解析引擎，累计 +133 行」
 
   - 同一功能的多次迭代（feat → fix → refactor）→ 合并为一个完整故事
 ```
@@ -133,8 +133,8 @@ python git_resume_analyzer.py --author "作者名" --json --no-merges
 
 ```
 路径中的关键词 → 模块归属判断
-  路径包含 /assets/       → 资产管理模块
-  路径包含 /threat/       → 威胁分析模块
+  路径包含 /orders/       → 订单模块
+  路径包含 /risk/         → 风控模块
   路径包含 /auth/         → 权限认证模块
   路径包含 /controller/   → API/接口层
   路径包含 /service/      → 业务逻辑层
@@ -193,9 +193,9 @@ body 中的关键词 → 技术栈判断
   refactor → 代码重构。从 body 找架构问题
 
 推断方法（以 fix 为例）：
-  title: "fix: 浪潮云主机OS字段解析全面修复"
-  body: "新增 parseOsInfo() 方法，支持 V 前缀/无 V 前缀/Windows 格式..."
-  推断：OS 字段格式多样（至少 3 种格式），现有硬编码方案无法适配，
+  title: "fix: 订单状态字段解析修复"
+  body: "新增 parseStatusInfo() 方法，支持多种状态格式..."
+  推断：状态字段格式多样（至少 3 种格式），现有硬编码方案无法适配，
         导致数据入库错误。需要设计通用解析方案。
 
 推断技巧：
@@ -279,7 +279,7 @@ body 中的关键词 → 技术栈判断
 ```
 • 设计并实现多操作系统类型自适应字段解析引擎，使用正则表达式支持 5+ 种格式
   自动识别和转换，防御性设计确保异常情况下数据不被覆盖
-• 使用 CompletableFuture + ExecutorService 实现终端数据全量分页并发拉取，
+• 使用 CompletableFuture + ExecutorService 实现数据全量分页并发拉取，
   性能提升约 40%
 ```
 
@@ -337,28 +337,28 @@ body 中的关键词 → 技术栈判断
 
 ## 完整工作流程示例
 
-假设你要分析作者 luoxiaogen 在项目中的产出。以下是你实际应该做的每一步：
+假设你要分析作者 alice 在项目中的产出。以下是你实际应该做的每一步：
 
 ### 第 1 步：看提交历史概览
 
 ```bash
-git log --author="luoxiaogen" --all --oneline --no-merges
+git log --author="alice" --all --oneline --no-merges
 ```
 
 输出：
 ```
-58c58df fix(assets): 浪潮云主机OS字段解析全面修复
-6c0539b fix: 更新统计栏永中office统计逻辑
-372fbe2 fix(assets): 浪潮云主机OS字段解析及CPU硬件非空约束修复
-f203495 fix: mergeTerminal中对mac_addr空值兜底为空字符串
-6d9d105 feat: 360办公终端software接口支持全量分页并发拉取
-f8893ba feat: 360办公终端software接口支持全量分页并发拉取
-c7ae44a fix(threat): 修正getManagerPerson Tuple别名映射
-18b5d75 多结果歧义时不绑定资产信息
-15535de 资产匹配IP查询由模糊匹配改为精确匹配
-bee0032 资产匹配IP查询由模糊匹配改为精确匹配
-c4711bb 优化办公终端数据处理逻辑，增加去重和冲突合并功能
-c5fd07e 优化办公终端360数据同步逻辑
+58c58df fix(orders): 订单状态字段解析修复
+6c0539b fix: 更新统计栏导出逻辑
+372fbe2 fix(orders): 订单状态字段解析及空值约束修复
+f203495 fix: 合并订单时对空字段兜底
+6d9d105 feat: 库存数据接口支持全量分页并发拉取
+f8893ba feat: 库存数据接口支持全量分页并发拉取
+c7ae44a fix(users): 修正 getOwnerInfo 别名映射
+18b5d75 多结果歧义时不绑定订单信息
+15535de 订单匹配查询改为精确匹配
+bee0032 订单匹配查询改为精确匹配
+c4711bb 优化库存数据处理逻辑，增加去重和冲突合并功能
+c5fd07e 优化库存数据同步逻辑
 ```
 
 ### 第 2 步：看关键提交的 diff（核心步骤！）
@@ -366,10 +366,10 @@ c5fd07e 优化办公终端360数据同步逻辑
 不要只看标题。挑出代码量大的提交，看实际改了啥：
 
 ```bash
-# OS 字段解析——看看到底怎么解析的
+# 订单状态字段解析——看看到底怎么解析的
 git show 58c58df
 
-# 看到新增了 parseOsInfo() 方法
+# 看到新增了 parseStatusInfo() 方法
 # 看到 Pattern.compile() 多格式匹配
 # 看到 null 保护逻辑
 ```
@@ -384,10 +384,10 @@ git show 58c58df
 
 ```bash
 # 看整个模块的结构
-ls assets/src/main/java/com/cqcdi/ngsoc/assets/
+ls orders/src/main/java/com/example/app/orders/
 
 # 读关键文件
-cat assets/src/main/java/com/cqcdi/ngsoc/assets/service/impl/AMachineServiceImpl.java
+cat orders/src/main/java/com/example/app/orders/service/impl/OrderServiceImpl.java
 ```
 
 从源码你可以确认：
@@ -401,34 +401,34 @@ cat assets/src/main/java/com/cqcdi/ngsoc/assets/service/impl/AMachineServiceImpl
 现在你掌握了所有信息，开始合并逻辑：
 
 ```
-OS 字段解析（2 次提交，+133 行）
-  ├─ 58c58df: 全面修复，新增 parseOsInfo() 方法
-  └─ 372fbe2: CPU 非空约束修复
-  → 合并为「多格式 OS 字段解析引擎」
+状态字段解析（2 次提交，+133 行）
+  ├─ 58c58df: 修复，新增 parseStatusInfo() 方法
+  └─ 372fbe2: 空值约束修复
+  → 合并为「多格式状态字段解析引擎」
 
 并发拉取（2 次提交，+345 行）
   ├─ 6d9d105: 首次实现分页并发
   └─ f8893ba: 完善和修复
-  → 合并为「终端数据全量并发拉取优化」
+  → 合并为「库存数据全量并发拉取优化」
 
-资产查询（3 次提交，+25 行）
+订单查询（3 次提交，+25 行）
   ├─ 15535de: 模糊→精确匹配
   ├─ bee0032: 补充完善
   └─ 18b5d75: 多结果去歧义
-  → 合并为「资产匹配查询优化」
+  → 合并为「订单匹配查询优化」
 ```
 
 ### 第 5 步：撰写简历
 
 ```markdown
-### 资产管理系统数据集成优化（2026-04 ~ 2026-05，12 次提交）
+### 订单系统数据集成优化（2026-04 ~ 2026-05，12 次提交）
 
-- 系统要接入多家厂商的资产数据，各家推送的操作系统格式五花八门，之前硬编码的
+- 系统要接入多个来源的订单数据，各家推送的状态格式五花八门，之前硬编码的
   if-else 漏一种就入库出错。我写了个正则解析器把各种格式统一成标准字段，
   解析失败时保留原值、不覆盖已有数据。
-- 办公终端的数据原来一个个接口串行拉，慢。改成用 CompletableFuture 分页并发拉取，
-  再按 MAC 去重合并冲突，同步耗时明显下降。
-- 顺手清理了一批 JPA 映射问题和数据库非空约束冲突，资产匹配从模糊查询改成精确匹配，
+- 库存数据原来一个个接口串行拉，慢。改成用 CompletableFuture 分页并发拉取，
+  再按主键去重合并冲突，同步耗时明显下降。
+- 顺手清理了一批 JPA 映射问题和数据库非空约束冲突，订单匹配从模糊查询改成精确匹配，
   减少了错绑。
 
 **技术栈**：Java、Spring Boot、JPA/Hibernate、CompletableFuture、正则
