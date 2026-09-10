@@ -13,6 +13,7 @@ Git Resume Analyzer - 从 git 提交历史采集结构化数据
 """
 
 import subprocess
+import re
 import json
 import os
 import sys
@@ -23,8 +24,10 @@ import argparse
 class GitDataCollector:
     """Git 数据采集器——只做机械的数据提取，不做任何语义推断"""
 
-    def __init__(self, author: str, since: str = None, until: str = None):
-        self.author = author
+    def __init__(self, authors, since: str = None, until: str = None):
+        if isinstance(authors, str):
+            authors = [authors]
+        self.authors = list(authors) if authors else []
         self.since = since
         self.until = until
         self.commits: List[Dict] = []
@@ -58,52 +61,78 @@ class GitDataCollector:
     # ---------- 数据采集 ----------
 
     def fetch_commits(self, no_merges: bool = False) -> List[Dict]:
-        """获取提交数据，返回纯结构化信息"""
-        args = ['git', 'log', f'--author={self.author}', '--all',
-                '--format=%h|%ai|%s|%B', '--numstat']
-        if self.since:
-            args.append(f'--since={self.since}')
-        if self.until:
-            args.append(f'--until={self.until}')
+        """获取提交数据，返回纯结构化信息。
 
-        output = self._run_git(args)
-        if not output:
+        元数据与文件统计分两条 git log 采集：
+        - 元数据用不可打印字符作为字段/记录分隔符（commit body 中不可能出现），
+          避免 body 多行或含 '|' 时破坏解析；merge 用父提交数判断，不依赖标题。
+        - 文件统计用 --numstat + %H 按 hash 关联，避免与多行 body 混在一起。
+        """
+        commits = []
+
+        # ---- 命令 A：提交元数据 ----
+        # %P 父提交列表；字段用 %x1f 分隔，body 放最后一段整体保留；记录用 %x1e 分隔。
+        meta_args = ['git', 'log', '--all',
+                     '--format=%P%x1f%H%x1f%ai%x1f%s%x1f%B%x1e']
+        for a in self.authors:
+            meta_args.append(f'--author={a}')
+        if self.since:
+            meta_args.append(f'--since={self.since}')
+        if self.until:
+            meta_args.append(f'--until={self.until}')
+
+        meta_output = self._run_git(meta_args)
+        if not meta_output:
             return []
 
-        commits = []
-        current = None
+        for record in meta_output.split('\x1e'):
+            if not record.strip():
+                continue
+            fields = record.split('\x1f', 4)  # body 作为最后一段，含换行/分隔符也能完整保留
+            if len(fields) < 5:
+                continue
+            parents = fields[0].split()
+            commits.append({
+                'hash': fields[1],
+                'date': fields[2].split()[0] if fields[2] else '',
+                'title': fields[3],
+                'body': fields[4].rstrip(),
+                'files': [],
+                'lines_added': 0,
+                'lines_deleted': 0,
+                'is_merge': len(parents) > 1,
+            })
 
-        for line in output.split('\n'):
-            if '|' in line and not line.startswith('\t'):
-                # 提交头行
-                if current:
-                    commits.append(current)
-                parts = line.split('|', 3)
-                current = {
-                    'hash': parts[0],
-                    'date': parts[1].split()[0] if len(parts) > 1 else '',
-                    'title': parts[2] if len(parts) > 2 else '',
-                    'body': parts[3] if len(parts) > 3 else '',
-                    'files': [],
-                    'lines_added': 0,
-                    'lines_deleted': 0,
-                    'is_merge': parts[2].startswith('Merge') if len(parts) > 2 else False,
-                }
-            elif current and line and not line.startswith('|'):
-                # numstat 行
-                parts = line.split('\t')
-                if len(parts) >= 3:
-                    try:
-                        added = int(parts[0]) if parts[0].lstrip('-').isdigit() else 0
-                        deleted = int(parts[1]) if parts[1].lstrip('-').isdigit() else 0
-                        current['lines_added'] += added
-                        current['lines_deleted'] += deleted
-                        current['files'].append(parts[2])
-                    except (ValueError, IndexError):
-                        pass
+        # ---- 命令 B：文件统计（按 hash 关联到元数据） ----
+        stat_args = ['git', 'log', '--all', '--format=%H', '--numstat']
+        for a in self.authors:
+            stat_args.append(f'--author={a}')
+        if self.since:
+            stat_args.append(f'--since={self.since}')
+        if self.until:
+            stat_args.append(f'--until={self.until}')
 
-        if current:
-            commits.append(current)
+        stat_output = self._run_git(stat_args)
+        commit_map = {c['hash']: c for c in commits}
+        current_hash = None
+        if stat_output:
+            for line in stat_output.split('\n'):
+                if not line.strip():
+                    continue
+                if re.match(r'^[\d-]+\t[\d-]+\t', line):
+                    parts = line.split('\t')
+                    if len(parts) >= 3 and current_hash in commit_map:
+                        target = commit_map[current_hash]
+                        try:
+                            added = int(parts[0]) if parts[0].lstrip('-').isdigit() else 0
+                            deleted = int(parts[1]) if parts[1].lstrip('-').isdigit() else 0
+                            target['lines_added'] += added
+                            target['lines_deleted'] += deleted
+                            target['files'].append(parts[2])
+                        except (ValueError, IndexError):
+                            pass
+                else:
+                    current_hash = line.strip()
 
         # 过滤 merge
         if no_merges:
@@ -120,7 +149,7 @@ class GitDataCollector:
         """返回纯统计信息，不做任何语义分析"""
         if not self.commits:
             return {
-                'author': self.author,
+                'author': ', '.join(self.authors),
                 'total_commits': 0,
                 'total_lines_added': 0,
                 'total_lines_deleted': 0,
@@ -137,13 +166,13 @@ class GitDataCollector:
         dates = [c['date'] for c in self.commits if c['date']]
 
         return {
-            'author': self.author,
+            'author': ', '.join(self.authors),
             'total_commits': len(self.commits),
             'merge_commits': merge_count,
             'total_lines_added': sum(c['lines_added'] for c in self.commits),
             'total_lines_deleted': sum(c['lines_deleted'] for c in self.commits),
             'total_files_changed': len(all_files),
-            'date_range': f"{dates[-1]} ~ {dates[0]}" if len(dates) >= 2 else (dates[0] if dates else 'N/A'),
+            'date_range': f"{min(dates)} ~ {max(dates)}" if len(dates) >= 2 else (dates[0] if dates else 'N/A'),
         }
 
     # ---------- 输出 ----------
@@ -166,7 +195,7 @@ class GitDataCollector:
             return "没有找到提交记录，请检查作者名称是否正确。"
 
         lines = []
-        lines.append(f"作者：{self.author}")
+        lines.append(f"作者：{', '.join(self.authors)}")
         lines.append(f"时间：{summary['date_range']}")
         merge_info = f"（其中 merge {summary['merge_commits']} 次"
         if self._merge_filtered > 0:
@@ -200,9 +229,11 @@ def main():
   python git_resume_analyzer.py --author "张三" --json
   python git_resume_analyzer.py --author "张三" --json --no-merges --output data.json
   python git_resume_analyzer.py --author "张三" --since 2026-01-01 --no-merges
+  python git_resume_analyzer.py --author "张三" --author "李四" --json   # 合并多个作者
         """,
     )
-    parser.add_argument('--author', required=True, help='Git 作者名称')
+    parser.add_argument('--author', required=True, action='append',
+                       help='Git 作者名称（可多次传入，合并多个作者）')
     parser.add_argument('--since', help='开始日期 (YYYY-MM-DD)')
     parser.add_argument('--until', help='结束日期 (YYYY-MM-DD)')
     parser.add_argument('--no-merges', action='store_true', help='过滤 Merge commit')
